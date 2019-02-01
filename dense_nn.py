@@ -30,8 +30,11 @@ def extract_feature(file_name):
 
 
 def parse_audio_files(parent_dir, sub_dirs, file_ext="*.wav"):
-    features, labels = np.empty((0, 193)), np.empty(0)
+    train_x, train_y = np.empty((0, 193)), np.empty((0, 4))
+    test_x, test_y = np.empty((0, 193)), np.empty((0, 4))
+    # features, labels = np.empty((0, 193)), np.empty(0)
     for label, sub_dir in enumerate(sub_dirs):
+        fea, lab = np.empty((0, 193)), np.empty(0)
         for fn in glob.glob(os.path.join(parent_dir, sub_dir, file_ext)):
             try:
                 mfccs, chroma, mel, contrast, tonnetz = extract_feature(fn)
@@ -39,9 +42,18 @@ def parse_audio_files(parent_dir, sub_dirs, file_ext="*.wav"):
                 print("Error encountered while parsing file: ", fn, e)
                 continue
             ext_features = np.hstack([mfccs, chroma, mel, contrast, tonnetz])
-            features = np.vstack([features, ext_features])
-            labels = np.append(labels, fn.split('/')[2].split('_')[0])
-    return np.array(features), np.array(labels, dtype=np.int)
+            fea = np.vstack([fea, ext_features])
+            lab = np.append(lab, fn.split('/')[2].split('_')[0])
+            # features = np.vstack([features, ext_features])
+            # labels = np.append(labels, fn.split('/')[2].split('_')[0])
+        lab = to_categorical(lab, 4)
+        tr_x, te_x, tr_y, te_y = train_test_split(fea, lab, test_size=0.3, random_state=42)
+        train_x = np.vstack([train_x, tr_x])
+        train_y = np.vstack([train_y, tr_y])
+        test_x = np.vstack([test_x, te_x])
+        test_y = np.vstack([test_y, te_y])
+        print(train_x.shape, train_y.shape, test_x.shape, test_y.shape)
+    return np.array(train_x), np.array(test_x), np.array(train_y, dtype=np.int), np.array(test_y, dtype=np.int)
 
 
 # def one_hot_encode(labels):
@@ -57,20 +69,21 @@ main_dir = 'dataset'
 sub_dir = os.listdir(main_dir)
 print("\ncollecting features and labels...")
 print("\nthis will take some time...")
-features, labels = parse_audio_files(main_dir, sub_dir)
+X_train, X_test, Y_train, Y_test = parse_audio_files(main_dir, sub_dir)
+print(X_train.shape, Y_train.shape, X_test.shape, Y_test.shape)
 print("done")
-np.save('X', features)
+# np.save('X', features)
 # one hot encoding labels
 # labels = one_hot_encode(labels)
-labels = to_categorical(labels, 4)
-np.save('y', labels)
+# labels = to_categorical(labels, 4)
+# np.save('y', labels)
 
-X = np.load('X.npy')
-y = np.load('y.npy')
-train_x, test_x, train_y, test_y = train_test_split(X, y, test_size=0.33, random_state=42)
+# X = np.load('X.npy')
+# y = np.load('y.npy')
+# train_x, test_x, train_y, test_y = train_test_split(X, y, test_size=0.33, random_state=42)
 
-n_dim = train_x.shape[1]
-n_classes = train_y.shape[1]
+n_dim = X_train.shape[1]
+n_classes = Y_train.shape[1]
 n_hidden_units_1 = n_dim
 n_hidden_units_2 = 400  # approx n_dim * 2
 n_hidden_units_3 = 200  # half of layer 2
@@ -102,10 +115,10 @@ def create_model(optimiser='adam', dropout_rate=0.2):
 
 model = create_model()
 # train the model
-history = model.fit(train_x, train_y, epochs=100, batch_size=4)
+history = model.fit(X_train, Y_train, epochs=100, batch_size=16)
 
 # predicting from the model
-predict = model.predict(test_x, batch_size=4)
+predict = model.predict(X_test, batch_size=16)
 
 emotions = ['sad', 'angry', 'happy', 'neutral']
 # predicted emotions from the test set
@@ -114,14 +127,14 @@ y_pred = np.argmax(predict, 1)
 # print(test_y.shape[0])
 
 predicted_emo = []
-for i in range(0, test_y.shape[0]):
+for i in range(0, Y_test.shape[0]):
     emo = emotions[y_pred[i]]
     predicted_emo.append(emo)
     # print(predicted_emo)
 
 actual_emo = []
-y_true = np.argmax(test_y, 1)
-for i in range(0, test_y.shape[0]):
+y_true = np.argmax(Y_test, 1)
+for i in range(0, Y_test.shape[0]):
     emo = emotions[y_true[i]]
     actual_emo.append(emo)
 
