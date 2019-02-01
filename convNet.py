@@ -20,7 +20,7 @@ print(X_test.shape)
 # # Feature dimension
 feature_dim_1 = 26
 channel = 1
-num_classes = 4
+num_classes = 5
 
 # Reshaping to perform 2D convolution
 X_train = X_train.reshape(X_train.shape[0], feature_dim_1, feature_dim_2, channel)
@@ -59,7 +59,7 @@ def create_model():
 
 
 model = create_model()
-model.fit(X_train, y_train, batch_size=50, epochs=200, validation_data=(X_test, y_test))
+model.fit(X_train, y_train, batch_size=32, epochs=200, validation_data=(X_test, y_test))
 
 
 # predicting from the model

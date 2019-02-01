@@ -4,7 +4,6 @@ import glob
 import librosa
 import numpy as np
 from keras.utils import to_categorical
-from sklearn.model_selection import train_test_split
 
 
 def wav2mfcc(file_path, max_len=40):
@@ -28,30 +27,40 @@ def wav2mfcc(file_path, max_len=40):
 # Output: Tuple (Label, Indices of the labels, one-hot encoded labels)
 def get_train_test():
     main_dir = 'IEMOCAP'
-    sessions = os.listdir(main_dir)
-    print(sessions)
     # Init mfcc vectors
-    mfcc_vectors = []
-    labels = np.empty(0)
-    i = 0
-    while i < len(sessions):
-        for label in (os.listdir(main_dir + '/' + (sessions[i]))):
-            for fn in glob.glob(os.path.join(main_dir, sessions[i], label, "*.wav")):
-                try:
-                    mfcc = wav2mfcc(fn, 40)
-                    mfcc_vectors.append(mfcc)
-                except Exception as e:
-                    print("Error encountered while parsing file: ", fn, e)
-                    continue
-                labels = np.append(labels, fn.split('/')[3].split('_')[0])
-        i+=1
-    np.save('features', mfcc_vectors)
-    labels = to_categorical(labels, 4)
-    np.save('label', labels)
+    X_train = []
+    X_test = []
+    Y_train = np.empty(0)
+    Y_test = np.empty(0)
+    for fn in glob.glob(os.path.join(main_dir, "*.wav")):
+        try:
+            mfcc = wav2mfcc(fn, 40)
+            label = fn.split('/')[1].split('_')[0]
+            if 'Ses01' in fn:
+                X_test.append(mfcc)
+                Y_test = np.append(Y_test, label)
+            else:
+                X_train.append(mfcc)
+                Y_train = np.append(Y_train, label)
+        except Exception as e:
+            print("Error encountered while parsing file: ", fn, e)
+            continue
 
-    X = np.load('features.npy')
-    y = np.load('label.npy')
+    np.save('X_train', X_train)
+    np.save('Y_train', Y_train)
+    np.save('X_test', X_test)
+    np.save('Y_test', Y_test)
 
-    print(X.shape)
-    assert X.shape[0] == len(y)
-    return train_test_split(X, y, test_size=0.3, random_state=42)
+    train_x = np.load('X_train.npy')
+    test_x = np.load('X_test.npy')
+    train_y = np.load('Y_train.npy')
+    train_y = to_categorical(train_y, 5)
+    test_y = np.load('Y_test.npy')
+    test_y = to_categorical(test_y, 5)
+
+    print(train_x.shape)
+    print(train_y.shape)
+    print(test_x.shape)
+    print(test_y.shape)
+    assert train_x.shape[0] == len(train_y)
+    return train_x, test_x, train_y, test_y
