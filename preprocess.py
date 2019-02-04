@@ -6,10 +6,14 @@ import numpy as np
 from keras.utils import to_categorical
 
 
-def wav2mfcc(file_path, max_len=40):
+def wav2mfcc(file_path, max_len=96):
     wave, sr = librosa.load(file_path, mono=True, sr=None)
-    # wave = wave[::3]
-    mfcc = librosa.feature.mfcc(wave, sr=16000, n_mfcc=26, hop_length=int(0.010 * sr), n_fft=int(0.025 * sr))
+    start = 8000
+    end = 96000
+    wave = wave[start:end]
+    # spectrogram = librosa.feature.melspectrogram(y=wave, sr=16000,  n_fft=512, win_length=400,
+    #                                              hop_length=160, power=2.0, n_mels=128)
+    mfcc = librosa.feature.mfcc(wave, sr=16000, n_mfcc=26, hop_length=160, n_fft=512)
 
     # If maximum length exceeds mfcc lengths then pad the remaining ones
     if max_len > mfcc.shape[1]:
@@ -19,7 +23,6 @@ def wav2mfcc(file_path, max_len=40):
     # Else cutoff the remaining parts
     else:
         mfcc = mfcc[:, :max_len]
-
     return mfcc
 
 
@@ -34,7 +37,7 @@ def get_train_test():
     Y_test = np.empty(0)
     for fn in glob.glob(os.path.join(main_dir, "*.wav")):
         try:
-            mfcc = wav2mfcc(fn, 40)
+            mfcc = wav2mfcc(fn, 96)
             label = fn.split('/')[1].split('_')[0]
             if 'Ses01' in fn:
                 X_test.append(mfcc)

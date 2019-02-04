@@ -54,6 +54,7 @@ class DataReader:
 
 def read_audio_from_filename(filename, target_sr):
     audio, _ = librosa.load(filename, sr=target_sr, mono=True)
+    audio = audio[8000:96000]
     audio = audio.reshape(-1, 1)
     return audio
 
