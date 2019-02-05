@@ -3,7 +3,6 @@ import glob
 import keras
 from keras.layers import Activation, Dense, Dropout, Conv2D, Flatten, MaxPooling2D
 from keras.models import Sequential
-from gimpfu import *
 import librosa
 import librosa.display
 import numpy as np
@@ -11,6 +10,9 @@ import pandas as pd
 
 import matplotlib.pyplot as plt
 from constants import *
+
+import cv2
+import numpy as np
 
 import warnings
 
@@ -51,17 +53,26 @@ def get_dataset(input_length=131000):
         plt.savefig('SPECTROGRAM' + '/' + fn.split('/')[1].split('.')[0] + '.png', bbox_inches='tight', pad_inches=0.0)
 
 
-def remove_background:
-    BASE_PATH = 'SPECTROGRAM'
-    FILE_EXTENSION = '.png'
+def remove_background():
+    for fn in glob.glob(os.path.join(DATA_DIR, "*.png")):
+        img = cv2.imread(fn)
+        ## (1) Convert to gray, and threshold
+        gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+        th, threshed = cv2.threshold(gray, 240, 255, cv2.THRESH_BINARY_INV)
 
-    for idx, img in enumerate(gimp.image_list()):
-        layer = img.layers[0]
-        filename = BASE_PATH + str(idx) + FILE_EXTENSION
-        gimp.pdb.gimp_by_color_select(layer, 'white', 12, 0, TRUE, 0, 0, 0)
-        gimp.pdb.gimp_edit_clear(layer)
-        gimp.pdb.plug_in_autocrop(img, layer)
-        gimp.pdb.gimp_file_save(img, layer, filename, filename)
+        ## (2) Morph-op to remove noise
+        kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (11, 11))
+        morphed = cv2.morphologyEx(threshed, cv2.MORPH_CLOSE, kernel)
+
+        ## (3) Find the max-area contour
+        cnts = cv2.findContours(morphed, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)[-2]
+        cnt = sorted(cnts, key=cv2.contourArea)[-1]
+
+        ## (4) Crop and save it
+        x, y, w, h = cv2.boundingRect(cnt)
+        dst = img[y:y + h, x:x + w]
+        cv2.imwrite('SPEC_IMAGES/' + fn.split('/')[1] + '.png', dst)
 
 if __name__ == '__main__':
-    get_dataset(131000)
+    # get_dataset(131000)
+    remove_background()
